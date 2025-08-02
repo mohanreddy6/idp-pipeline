@@ -1,6 +1,4 @@
-git add README.md
-git commit -m "Add CI status badge"
-git push origin main
+[![CI](https://github.com/mohanreddy6/idp-pipeline/actions/workflows/main.yml/badge.svg)](https://github.com/mohanreddy6/idp-pipeline/actions/workflows/main.yml)
 # Intelligent Document Processing (IDP) Pipeline
 
 ## Overview
