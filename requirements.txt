@@ -1,3 +1,9 @@
 flask
 python-dotenv
+pydantic
+pytesseract
+Pillow
+opencv-python
+gunicorn
+openai
 pytest
