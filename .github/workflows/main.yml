@@ -7,14 +7,36 @@ on:
     branches: [main]
 
 jobs:
-  python-version-check:
+  setup-and-install:
     runs-on: ubuntu-latest
+    env:
+      DRY_RUN: "1"            # ensures your code stays in mock mode in CI
+      PYTHONUNBUFFERED: "1"
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Show versions
+
+      - name: Install system packages (Tesseract)
         run: |
-          python -V
-          pip -V
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Safety nets in CI if requirements.txt is missing items
+          pip install pillow pytesseract python-dotenv flask pydantic
+
+      - name: Import sanity check
+        run: |
+          python - << 'PY'
+          import pytesseract, PIL, flask, pydantic
+          print("Imports OK")
+          PY
