@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: idp-pipeline
+    env: docker
+    plan: free
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: DRY_RUN
+        value: "1"
