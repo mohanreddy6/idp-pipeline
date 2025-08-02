@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from src.ocr.ocr import ocr_text
 
 # 1) Create a simple image with “receipt-like” text
