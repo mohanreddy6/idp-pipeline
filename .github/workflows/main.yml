@@ -7,10 +7,14 @@ on:
     branches: [main]
 
 jobs:
-  smoke:
+  python-version-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out
-        uses: actions/checkout@v4
-      - name: Say hello
-        run: echo "CI is alive"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Show versions
+        run: |
+          python -V
+          pip -V
