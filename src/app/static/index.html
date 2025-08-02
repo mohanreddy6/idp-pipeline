@@ -2,52 +2,194 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>IDP Pipeline Demo</title>
+  <title>Invoice Extractor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
-    header { margin-bottom: 16px; }
-    form, .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; }
-    button { padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
-    pre { background: #f7f7f7; padding: 12px; border-radius: 8px; overflow:auto; }
-    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; margin: 24px; line-height: 1.35; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items:center; }
+    button { padding: 10px 14px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
+    pre { background: #111; color: #0f0; padding: 12px; border-radius: 10px; overflow:auto; }
+    #drop { border: 2px dashed #aaa; border-radius: 12px; padding: 20px; text-align:center; color:#666;}
+    #drop.drag { border-color: #4a90e2; background: #f5faff; color: #2b5aa8;}
+    table { border-collapse: collapse; }
+    td, th { border: 1px solid #ddd; padding: 6px 10px; }
+    .muted { color:#666; }
+    #preview { max-width: 320px; border-radius: 8px; display:none; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Intelligent Document Processing — Demo</h1>
-    <p>Upload a receipt image. The server runs OCR + structured parsing (DRY_RUN defaults to mock on Render).</p>
-  </header>
+  <h2>Invoice Extractor</h2>
 
-  <form id="f" class="card">
-    <div class="row">
-      <input type="file" id="file" accept="image/*" required />
-      <button type="submit">Extract</button>
+  <div class="card">
+    <div id="drop">Drop an image here or choose a file</div>
+    <div class="row" style="margin-top:12px;">
+      <input type="file" id="file" accept="image/*" />
+      <button id="btn-extract">Extract (raw + structured)</button>
+      <button id="btn-csv" disabled>Download CSV</button>
+      <span id="status" class="muted"></span>
     </div>
-  </form>
+    <div class="row" style="margin-top:12px;">
+      <img id="preview" alt="preview"/>
+    </div>
+  </div>
 
-  <h3>Result</h3>
-  <pre id="out">Waiting…</pre>
+  <div class="card">
+    <h3>Summary</h3>
+    <table>
+      <tbody id="summary"></tbody>
+    </table>
+  </div>
 
-  <script>
-    const form = document.getElementById('f');
-    const out  = document.getElementById('out');
+  <div class="card">
+    <h3>Parsed JSON</h3>
+    <pre id="parsed"></pre>
+  </div>
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const f = document.getElementById('file').files[0];
-      if (!f) { out.textContent = 'Choose an image first.'; return; }
-      const fd = new FormData();
-      fd.append('file', f);
-      out.textContent = 'Processing…';
-      try {
-        const res = await fetch('/extract_structured', { method: 'POST', body: fd });
-        const data = await res.json();
-        out.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        out.textContent = 'Error: ' + err;
-      }
-    });
-  </script>
+  <div class="card">
+    <h3>Raw OCR Text</h3>
+    <pre id="raw"></pre>
+  </div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+let lastParsed = null;
+
+function setStatus(msg) { $("#status").textContent = msg || ""; }
+
+function formatMoney(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "";
+  const val = Number(n);
+  return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderSummary(res) {
+  const p = res.parsed || {};
+  const vendor = p.vendor || {};
+  const pay = p.payment || {};
+  const math = p._math || {};
+
+  const rows = [
+    ["Merchant", vendor.name ?? ""],
+    ["Invoice #", vendor.invoice_no ?? ""],
+    ["Currency", pay.currency ?? ""],
+    ["Subtotal", formatMoney(pay.subtotal)],
+    ["Tax", formatMoney(pay.tax)],
+    ["Tip", formatMoney(pay.tip)],
+    ["Total", formatMoney(pay.total)],
+    ["Method", pay.method ?? ""],
+    ["Math check", math.status ?? ""],
+    ["Note", math.note ?? ""]
+  ].map(([k,v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("");
+
+  $("#summary").innerHTML = rows;
+}
+
+function previewFile(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = $("#preview");
+  img.src = url;
+  img.style.display = "block";
+}
+
+function buildCSV(parsed) {
+  const lines = [];
+  const vendor = parsed.vendor || {};
+  const pay = parsed.payment || {};
+  const items = parsed.items || [];
+  const math = parsed._math || {};
+
+  // Header info
+  lines.push("Vendor,Invoice No.,Currency,Method,Math Status,Math Note");
+  lines.push([
+    vendor.name ?? "",
+    vendor.invoice_no ?? "",
+    pay.currency ?? "",
+    pay.method ?? "",
+    math.status ?? "",
+    (math.note ?? "").replaceAll(",", " ")
+  ].join(","));
+
+  lines.push(""); // blank line
+
+  // Items
+  lines.push("Description,SKU,Qty,Unit Price,Line Total");
+  for (const it of items) {
+    lines.push([
+      (it.description ?? "").toString().replaceAll(",", " "),
+      (it.sku ?? "").toString().replaceAll(",", " "),
+      it.qty ?? "",
+      it.unit_price ?? "",
+      it.total ?? ""
+    ].join(","));
+  }
+
+  lines.push(""); // blank
+  // Payment summary
+  lines.push("Subtotal,Tax,Tip,Total");
+  lines.push([pay.subtotal ?? "", pay.tax ?? "", pay.tip ?? "", pay.total ?? ""].join(","));
+
+  return lines.join("\r\n");
+}
+
+function downloadCSV(text, filename="invoice.csv") {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function send(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  setStatus("Uploading�");
+  const res = await fetch("/extract", { method: "POST", body: fd });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  $("#parsed").textContent = JSON.stringify(data.parsed ?? {}, null, 2);
+  $("#raw").textContent = data.text ?? "";
+  renderSummary(data);
+  lastParsed = data.parsed ?? null;
+  $("#btn-csv").disabled = !lastParsed;
+  setStatus("Done");
+}
+
+$("#btn-extract").addEventListener("click", async () => {
+  const f = $("#file").files[0];
+  if (!f) { alert("Choose an image"); return; }
+  try { await send(f); } catch (e) { setStatus("Error"); alert(e); }
+});
+
+$("#file").addEventListener("change", (e) => {
+  const f = e.target.files?.[0];
+  previewFile(f);
+});
+
+// Drag & drop
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("drag"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("drag"); }));
+drop.addEventListener("drop", async (e) => {
+  const f = e.dataTransfer.files?.[0];
+  if (f) {
+    $("#file").files = e.dataTransfer.files; // so the button also sees it
+    previewFile(f);
+    try { await send(f); } catch (err) { setStatus("Error"); alert(err); }
+  }
+});
+
+// CSV download
+$("#btn-csv").addEventListener("click", () => {
+  if (!lastParsed) return;
+  const csv = buildCSV(lastParsed);
+  downloadCSV(csv);
+});
+</script>
 </body>
 </html>
