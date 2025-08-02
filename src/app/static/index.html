@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>IDP Pipeline Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    header { margin-bottom: 16px; }
+    form, .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; }
+    button { padding: 8px 14px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
+    pre { background: #f7f7f7; padding: 12px; border-radius: 8px; overflow:auto; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Intelligent Document Processing — Demo</h1>
+    <p>Upload a receipt image. The server runs OCR + structured parsing (DRY_RUN defaults to mock on Render).</p>
+  </header>
+
+  <form id="f" class="card">
+    <div class="row">
+      <input type="file" id="file" accept="image/*" required />
+      <button type="submit">Extract</button>
+    </div>
+  </form>
+
+  <h3>Result</h3>
+  <pre id="out">Waiting…</pre>
+
+  <script>
+    const form = document.getElementById('f');
+    const out  = document.getElementById('out');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = document.getElementById('file').files[0];
+      if (!f) { out.textContent = 'Choose an image first.'; return; }
+      const fd = new FormData();
+      fd.append('file', f);
+      out.textContent = 'Processing…';
+      try {
+        const res = await fetch('/extract_structured', { method: 'POST', body: fd });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        out.textContent = 'Error: ' + err;
+      }
+    });
+  </script>
+</body>
+</html>
