@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Invoice Extractor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; margin: 24px; line-height: 1.35; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items:center; }
+    button { padding: 10px 14px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
+    pre { background: #111; color: #0f0; padding: 12px; border-radius: 10px; overflow:auto; }
+    #drop { border: 2px dashed #aaa; border-radius: 12px; padding: 20px; text-align:center; color:#666;}
+    #drop.drag { border-color: #4a90e2; background: #f5faff; color: #2b5aa8;}
+    table { border-collapse: collapse; }
+    td, th { border: 1px solid #ddd; padding: 6px 10px; }
+    #preview { max-width: 320px; border-radius: 8px; display:none; }
+    .muted { color:#666; }
+  </style>
+</head>
+<body>
+  <h2>Invoice Extractor</h2>
+
+  <div class="card">
+    <div id="drop">Drop an image here or choose a file</div>
+    <div class="row" style="margin-top:12px;">
+      <input type="file" id="file" accept="image/*" />
+      <button id="btn-extract">Extract</button>
+      <span id="status" class="muted"></span>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <img id="preview" alt="preview"/>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Summary</h3>
+    <table><tbody id="summary"></tbody></table>
+  </div>
+
+  <div class="card">
+    <h3>Parsed JSON</h3>
+    <pre id="parsed"></pre>
+  </div>
+
+  <div class="card">
+    <h3>Raw OCR Text</h3>
+    <pre id="raw"></pre>
+  </div>
+
+<script>
+const BACKEND = "https://idp-pipeline.onrender.com";  // <-- your backend
+
+const $ = s => document.querySelector(s);
+function setStatus(m){ $("#status").textContent = m||""; }
+function formatMoney(n){ if(n==null||Number.isNaN(n)) return ""; return Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function renderSummary(res){
+  const p = res.parsed||{}, v = p.vendor||{}, pay = p.payment||{}, m = p._math||{};
+  const rows = [
+    ["Merchant", v.name||""], ["Invoice #", v.invoice_no||""], ["Currency", pay.currency||""],
+    ["Subtotal", formatMoney(pay.subtotal)], ["Tax", formatMoney(pay.tax)], ["Tip", formatMoney(pay.tip)],
+    ["Total", formatMoney(pay.total)], ["Method", pay.method||""], ["Math check", m.status||""], ["Note", m.note||""]
+  ].map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join("");
+  $("#summary").innerHTML = rows;
+}
+function previewFile(f){ if(!f) return; const url = URL.createObjectURL(f); const img=$("#preview"); img.src=url; img.style.display="block"; }
+
+async function send(file){
+  const fd = new FormData(); fd.append("file", file);
+  setStatus("Uploading…");
+  const res = await fetch(`${BACKEND}/extract`, { method:"POST", body: fd });
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  $("#parsed").textContent = JSON.stringify(data.parsed||{}, null, 2);
+  $("#raw").textContent = data.text||"";
+  renderSummary(data);
+  setStatus("Done");
+}
+
+$("#btn-extract").addEventListener("click", async ()=>{
+  const f = $("#file").files[0]; if(!f) return alert("Choose an image");
+  try{ previewFile(f); await send(f); }catch(e){ setStatus("Error"); alert(e); }
+});
+
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault(); drop.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault(); drop.classList.remove("drag");}));
+drop.addEventListener("drop", async e=>{
+  e.preventDefault();
+  const f = e.dataTransfer.files?.[0];
+  if(f){ $("#file").files = e.dataTransfer.files; previewFile(f); try{ await send(f);}catch(err){ setStatus("Error"); alert(err); } }
+});
+</script>
+</body>
+</html>
