@@ -7,6 +7,10 @@ from src.ocr.ocr import ocr_text
 from src.llm.extract import extract_structured
 
 app = Flask(__name__, static_folder="static", static_url_path="")
+@app.get("/")
+def home():
+    # Serve the demo page from /src/app/static/index.html
+    return send_from_directory(app.static_folder, "index.html")
 
 
 @app.get('/health')
