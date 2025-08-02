@@ -1,4 +1,8 @@
 [![CI](https://github.com/mohanreddy6/idp-pipeline/actions/workflows/main.yml/badge.svg)](https://github.com/mohanreddy6/idp-pipeline/actions/workflows/main.yml)
+![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue)
+![License](https://img.shields.io/badge/license-MIT-informational)
+
+
 # Intelligent Document Processing (IDP) Pipeline
 
 ## Overview
