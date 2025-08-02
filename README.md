@@ -1,58 +1,96 @@
-\# Intelligent Document Processing (IDP) Pipeline
+# Intelligent Document Processing (IDP) Pipeline
 
+## Overview
 
+The Intelligent Document Processing (IDP) Pipeline automates the extraction of structured data from noisy receipts and other document images. By leveraging Optical Character Recognition (OCR) and optional advanced language model integrations, it efficiently captures critical information including vendor details, itemized transactions (SKU, quantity, and price), and payment totals. This tool helps reduce manual data entry, improve accuracy, and enhance business efficiency.
 
-LLM-based pipeline to extract \*\*vendor metadata\*\*, \*\*line items (SKU/qty/price)\*\*, and \*\*payment totals\*\* from \*\*noisy receipts\*\*.
+## Key Features
 
+* **OCR Text Extraction:**
 
+  * Reliable text extraction using Tesseract OCR with minimal preprocessing.
 
-\*\*Tech\*\*: Python · Tesseract OCR · Flask API · Pydantic · (Optional) OpenAI via LangChain-like prompt · Docker (later) · AWS Lambda (later)
+* **Structured Data Extraction:**
 
+  * Optional integration with advanced language models (e.g., OpenAI) to produce structured JSON data.
 
+* **REST API Endpoints:**
 
----
+  * `POST /extract`: Runs OCR and returns raw text.
+  * `POST /extract_structured`: Performs OCR and returns structured JSON containing vendor details, line items, payment totals, and raw extracted text.
 
+* **Dry Run Mode:**
 
+  * Provides deterministic mock data output by default, ideal for testing without external API keys or associated costs.
 
-\## Features
+* **Real Parsing Mode:**
 
-\- OCR with Tesseract (preprocessing kept minimal for reliability)
-
-\- REST API:
-
-&nbsp; - `POST /extract` → runs OCR, returns raw text
-
-&nbsp; - `POST /extract\_structured` → OCR → structured JSON (vendor/items/payment/raw\_text)
-
-\- \*\*DRY\_RUN\*\* mode (default): returns deterministic mock JSON (no API keys or cost)
-
-\- Real LLM parsing optional (set `DRY\_RUN=0` and add `OPENAI\_API\_KEY`)
-
-
-
----
-
-
-
-\## Quickstart
-
-
-
-\### 1) Clone and set up
+  * Enable actual parsing by configuring environment variables:
 
 ```bash
+DRY_RUN=0
+OPENAI_API_KEY=<your-api-key>
+```
 
-git clone https://github.com/<your-username>/idp-pipeline.git
+## Technologies Used
 
+* Python for backend scripting and processing.
+* Tesseract OCR for reliable optical character recognition.
+* Flask for creating RESTful API endpoints.
+* Pydantic for data validation and structured schemas.
+* OpenAI (optional) for advanced text parsing capabilities.
+
+## Quick Start Guide
+
+Follow these steps to set up and run the IDP Pipeline locally:
+
+```bash
+git clone https://github.com/mohanreddy6/idp-pipeline.git
 cd idp-pipeline
 
 python -m venv .venv
-
-\# Windows PowerShell:
-
-.\\.venv\\Scripts\\Activate.ps1
+# Activate virtual environment
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
 
 pip install -r requirements.txt
 
+# Start the Flask API
+python app.py
+```
 
+## Project Structure
 
+```
+idp-pipeline/
+├── README.md
+├── requirements.txt
+├── app.py
+├── scripts/
+│   ├── ocr.py
+│   └── parser.py
+└── tests/
+    ├── test_ocr.py
+    └── test_parser.py
+```
+
+## Links
+
+* [GitHub Repository](https://github.com/mohanreddy6/idp-pipeline)
+* [Live Demo](https://idp-pipeline.onrender.com)
+
+## Limitations and Error Handling
+
+* Effective with clear document images; less effective with poor scans or unclear images.
+* Users may experience inaccuracies in OCR text extraction from poorly formatted documents.
+* Advanced parsing requires an active API key and internet connectivity.
+
+## Testing and Reliability
+
+The IDP Pipeline includes unit tests to verify functionality and maintain reliability. Integration with continuous integration and continuous deployment (CI/CD) pipelines is recommended for ongoing automated validation.
+
+## Future Enhancements
+
+* Integration with Docker and AWS Lambda for scalable deployment.
+* Improvement of parsing accuracy with advanced NLP models.
+* Expansion to handle additional document formats and extraction types.
