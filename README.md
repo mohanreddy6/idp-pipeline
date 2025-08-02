@@ -1,3 +1,6 @@
+git add README.md
+git commit -m "Add CI status badge"
+git push origin main
 # Intelligent Document Processing (IDP) Pipeline
 
 ## Overview
