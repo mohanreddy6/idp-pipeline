@@ -1,0 +1,19 @@
+# venv & caches
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.cache/
+
+# local artifacts
+sample.png
+
+# git
+.git
+.gitignore
+
+# env
+.env
+.env.*
