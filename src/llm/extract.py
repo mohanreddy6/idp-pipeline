@@ -1,9 +1,18 @@
+# src/llm/extract.py
+
+from __future__ import annotations
+
 import os
+import json
+from typing import Any, Dict
+
 from dotenv import load_dotenv
-load_dotenv()
-from typing import Dict, Any
 from pydantic import ValidationError
+
 from src.utils.parser import ExtractionResult, VendorMetadata, LineItem, PaymentInfo
+
+# Load environment variables
+load_dotenv()
 
 # DRY_RUN=1 -> return mock data (no OpenAI needed)
 DRY_RUN = os.getenv("DRY_RUN", "1") == "1"
@@ -66,8 +75,10 @@ INPUT:
 
 def _call_openai(prompt: str) -> Dict[str, Any]:
     from openai import OpenAI
+
     client = OpenAI()
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
     resp = client.chat.completions.create(
         model=model,
         messages=[
@@ -76,8 +87,9 @@ def _call_openai(prompt: str) -> Dict[str, Any]:
         ],
         temperature=0,
     )
+
     content = resp.choices[0].message.content
-    import json
+
     try:
         return json.loads(content)
     except json.JSONDecodeError:
@@ -90,15 +102,6 @@ def extract_structured(ocr_text: str) -> ExtractionResult:
     else:
         prompt = _build_prompt(ocr_text)
         data = _call_openai(prompt)
-    try:
-        return ExtractionResult(**data)
-    except ValidationError:
-        return ExtractionResult(
-            vendor=VendorMetadata(**(data.get("vendor") or {})),
-            items=[LineItem(**i) for i in (data.get("items") or [])],
-            payment=PaymentInfo(**(data.get("payment") or {})),
-            raw_text=data.get("raw_text") or ocr_text
-        )
 
     try:
         return ExtractionResult(**data)
