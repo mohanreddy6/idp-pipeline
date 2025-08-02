@@ -1,20 +1,30 @@
-import os
-from typing import Union
-from PIL import Image
-import pytesseract
+# src/ocr/validate.py
+from __future__ import annotations
 
-# Optional: if Tesseract isn't on PATH for some users, allow override via env var
-TESSERACT_CMD = os.getenv("TESSERACT_CMD")
-if TESSERACT_CMD:
-    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+from typing import Any, Dict, List, Optional
 
-def ocr_text(img: Union[str, Image.Image], lang: str = "eng") -> str:
-    """
-    img: file path or PIL.Image
-    """
-    if isinstance(img, str):
-        image = Image.open(img)
-    else:
-        image = img
-    # Basic config: LSTM engine, assume a block of text
-    return pytesseract.image_to_string(image, lang=lang, config="--oem 3 --psm 6").strip()
+
+def _num(x: Any) -> Optional[float]:
+    """Best-effort numeric parsing. Returns None if not parseable."""
+    try:
+        if x is None:
+            return None
+        return float(x)
+    except Exception:
+        return None
+
+
+def calc_subtotal_from_items(items: List[Dict[str, Any]]) -> Optional[float]:
+    """Sum item totals; returns None if items is empty or totals missing."""
+    if not items:
+        return None
+
+    total = 0.0
+    saw_any = False
+    for it in items:
+        val = _num(it.get("total"))
+        if val is not None:
+            total += val
+            saw_any = True
+
+    return total if saw_any else None
